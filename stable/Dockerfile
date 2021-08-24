@@ -1,16 +1,20 @@
-FROM centos:latest
-MAINTAINER Boyan Botev <boyan_botev@premierinc.com> 
+FROM centos:7
+MAINTAINER Abhishek Arora <hey@abhishek.id>
 
 ENV     LD_LIBRARY_PATH=/usr/local/lib
 ENV     CXXFLAGS="-fPIC -march=native -O2"
 ENV	CFLAGS="-fPIC -march=native -O2"
 
-RUN     yum install -y unzip which tar more util-linux-ng passwd openssh-clients openssh-server ed m4 wget sudo git net-tools iproute \
-	bison flex libc-dev make perl-devel python-devel \
-	perl-ExtUtils-Embed readline-devel apr-devel libevent-devel libyaml-devel libcurl-devel bzip2-devel libxml2-devel openssl-devel \
-        centos-release-scl-rh centos-release-scl && yum install -y devtoolset-6-gcc devtoolset-6-gcc-c++ scl-utils
+RUN     yum groupinstall -y 'Development Tools'
 
-#RUN     scl enable devtoolset-6 bash
+RUN     yum-config-manager --enable rhel-server-rhscl-7-rpms
+
+RUN     yum install -y unzip which tar more util-linux-ng passwd openssh-clients openssh-server ed m4 wget sudo git net-tools iproute \
+	bison flex glibc-devel make perl-devel python-devel \
+	perl-ExtUtils-Embed readline-devel apr-devel libevent-devel libyaml-devel libcurl-devel bzip2-devel libxml2-devel openssl-devel \
+        centos-release-scl-rh centos-release-scl && yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ scl-utils
+
+# RUN     scl enable devtoolset-7 bash
 
         #download source code
 RUN     mkdir -p /usr/src/ &&  cd /usr/src && \ 
@@ -20,7 +24,7 @@ RUN     mkdir -p /usr/src/ &&  cd /usr/src && \
 
         #install xerces
 RUN     cd /usr/src/gp-xerces && mkdir build && cd build && \
- 	source /opt/rh/devtoolset-6/enable && \	
+ 	source /opt/rh/devtoolset-7/enable && \	
         ../configure --prefix=/usr/local && \
         make -j8 && \
         make install 
@@ -31,7 +35,7 @@ RUN	yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
         #install orca      
 RUN     cd /usr/src/gporca && mkdir build && cd build && \
 	git checkout v2.65.0 && \
-	source /opt/rh/devtoolset-6/enable && \	
+	source /opt/rh/devtoolset-7/enable && \	
         cmake3 ../ && \
         make -j8 && \
         make install 
@@ -40,7 +44,7 @@ RUN     cd /usr/src/gporca && mkdir build && cd build && \
 RUN     cd /usr/src/gpdb && mkdir -p /usr/local/gpdb && \
 	git submodule init && git submodule update && \
 	git checkout 5.10.1 && \
-	source /opt/rh/devtoolset-6/enable && \ 	
+	source /opt/rh/devtoolset-7/enable && \ 	
         ./configure --with-libxml --enable-orca --prefix=/usr/local/gpdb && \
 #        ./configure --with-perl --with-python --with-libxml --enable-mapreduce --enable-orca --prefix=/usr/local/gpdb && \
         make -j8 && \
