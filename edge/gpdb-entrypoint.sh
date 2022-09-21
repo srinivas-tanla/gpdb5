@@ -1,6 +1,6 @@
 #!/bin/bash 
 
-source /usr/local/gpdb/greenplum_path.sh
+source /usr/local/greenplum-db/greenplum_path.sh
 
 #
 # Trap signals here for graceful shutdown

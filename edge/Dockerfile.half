@@ -1,0 +1,84 @@
+FROM centos:7
+MAINTAINER Abhishek Arora <hey@abhishek.id>
+
+ENV     LD_LIBRARY_PATH=/usr/local/lib
+ENV     CXXFLAGS="-fPIC -march=native -O2"
+ENV	CFLAGS="-fPIC -march=native -O2"
+
+RUN     yum groupinstall -y 'Development Tools'
+
+RUN     yum-config-manager --enable rhel-server-rhscl-7-rpms
+
+RUN     yum install -y epel-release
+
+RUN     yum install -y unzip which tar more util-linux-ng passwd openssh-clients openssh-server ed m4 wget sudo git net-tools iproute \
+	bison flex glibc-devel make perl-devel python-devel \
+	perl-ExtUtils-Embed readline-devel apr-devel libevent-devel libyaml-devel libcurl-devel bzip2-devel libxml2-devel openssl-devel \
+        centos-release-scl-rh centos-release-scl && yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ scl-utils libzstd-devel
+
+RUN     scl enable devtoolset-7 bash
+
+
+RUN	yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+	yum install -y cmake3
+
+RUN 	yum install -y python3-devel
+RUN 	yum install -y openssl
+RUN 	yum install -y libevent
+
+#RUN 	yum install -y http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm
+#RUN 	yum install -y --nogpgcheck libevent2
+
+
+RUN 	yum -y install wget
+RUN 	wget https://github.com/greenplum-db/gpdb/releases/download/6.21.0/open-source-greenplum-db-6.21.0-rhel7-x86_64.rpm
+RUN 	rpm -i open-source-greenplum-db-6.21.0-rhel7-x86_64.rpm
+
+RUN 	chmod 755 /usr/local/greenplum-db/greenplum_path.sh && source /usr/local/greenplum-db/greenplum_path.sh
+
+COPY    * /tmp/
+RUN     cat /tmp/sysctl.conf.add >> /etc/sysctl.conf \
+        && cat /tmp/limits.conf.add >> /etc/security/limits.conf \
+        && rm -f /tmp/*.add \
+#	&& cp /usr/local/lib/lib* /usr/local/greenplum-db/lib/ \
+        && chmod 777 /tmp/gpinitsystem.conf \
+        && mv /tmp/discover_segments.sh /usr/local/bin/discover_segments.sh \
+        && chmod 755 /usr/local/bin/discover_segments.sh \
+        && mv /tmp/gpdb-entrypoint.sh /usr/local/bin/gpdb-entrypoint.sh \
+        && mv /tmp/gpdb-seg-entrypoint.sh /usr/local/bin/gpdb-seg-entrypoint.sh \
+        && chmod 755 /usr/local/bin/gpdb-entrypoint.sh \
+        && chmod 755 /usr/local/bin/gpdb-seg-entrypoint.sh \
+        && /usr/sbin/groupadd gpadmin \
+        && /usr/sbin/useradd gpadmin -g gpadmin -G wheel \
+        && echo "greenplum"|passwd --stdin gpadmin \
+        && echo "gpadmin        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers \
+        && mv /tmp/bash_profile /home/gpadmin/.bash_profile \
+        && chown gpadmin:gpadmin /tmp/gpinitsystem.conf \
+        && chown -R gpadmin: /home/gpadmin \
+        && mkdir -p /gpdata/master /gpdata/segments \
+        && chown -R gpadmin: /gpdata \
+        && chown -R gpadmin: /usr/local/greenplum-db \
+ 	&& chown gpadmin:gpadmin /usr/local \
+        && chown -R root:gpadmin /root \
+	&& localedef -i en_US -f UTF-8 en_US.UTF-8
+
+USER gpadmin
+ENV LOGNAME gpadmin
+WORKDIR /home/gpadmin
+
+RUN mkdir .ssh && chmod 0700 .ssh && cd .ssh \
+        && ssh-keygen -f id_rsa -t rsa -N '' \
+        && touch authorized_keys \
+        && chmod 0600 auth* id* \
+        && chmod 0644 id*.pub \
+        && cat id_rsa.pub | sed 's/@.*$/@master_1/' >> authorized_keys
+
+RUN cp /tmp/config .ssh/config
+ENV MASTER_DATA_DIRECTORY=/gpdata/master/gpseg-1
+
+EXPOSE 5432 22
+
+VOLUME /gpdata
+
+ENTRYPOINT ["gpdb-entrypoint.sh"]
+
